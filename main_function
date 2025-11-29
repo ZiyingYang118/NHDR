@@ -6,9 +6,7 @@ library(ggplot2)
 library(pps)
 library(compositions)
 library(robustbase)
-# library(cem)
 library(MatchIt)
-# library(tidyverse)
 library(dummies)
 library(MASS)
 
@@ -69,15 +67,15 @@ v2_fun = function(pw, pw_beta, mu_hat, model.par, y, svy.wt){
 ###########################################Main function
 ##########################################################################################################
 ##########################################################################################################
-# Parameter description                                                                                   #
-# data_NP: nonprobability sample                                                                          #
-# data_P: reference sample                                                                                #
-# CIV: list of names of common covarates                                                                  #
-# type_CIV: list of type of common covaroates,possible values inlcude 'guassian','binomial','multinomial' #
-# DV_NP: outcome                                                                                          #
-# DV_type:type of outcome,possible values inlcude'guassian','binomial'                                    #
-# sample_w:sample weight of refernce sample                                                               #
-# maxclassnum:upper limit of latent classes                                                               #
+# Parameter description                                                                                      #
+# data_NP: nonprobability sample                                                                             #
+# data_P: reference sample                                                                                   #
+# CIV: list of names of common covariates                                                                    #
+# type_CIV: list of type of common covariates, possible values include 'guassian', 'binomial', 'multinomial' #
+# DV_NP: outcome                                                                                             #
+# DV_type: type of outcome, possible values inlcude'guassian','binomial'                                     #
+# sample_w: sample weight of reference sample                                                                #
+# maxclassnum: upper limit of latent classes                                                                 #
 ###########################################################################################################
 NPinfer_ALC <-
   function(data_NP=data_A,data_P=data_B,
@@ -86,7 +84,7 @@ NPinfer_ALC <-
            maxclassnum=5)
   {
     #################################################################################################
-    ##################################################################################数据预处理-----
+    ##################################################################################processing the data-----
     #################################################################################################
     
     #calculate scaling factor a
@@ -102,7 +100,7 @@ NPinfer_ALC <-
     OSW_NP <- rep(1,times=nrow(data_NP))
     data_NP <- cbind(data_NP,SW=SW_NP,OSW=OSW_NP)
 
-    #geneting the id variable
+    #generating the id variable
     id <- 1:length(nrow(data_NP)+nrow(data_P))
     
     #combine the two samples
