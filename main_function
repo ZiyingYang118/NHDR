@@ -20,21 +20,13 @@ library(snowfall)
 library(pROC)
 
 
-#批注
-#group这个变量应该是函数自动生成比较好
-#三个方法到时候要改一下名字
-#做软件的时候，需要对每个待输入的参数进行质控：变量类型、能否是空值等
-#现在的function先算个点估计值，后续如果要做软件就再把bootstrap那套程序放上去
-# sweight是用于合并样本建模时候的权重，并不是概率样本的抽样权重  
-
-
 ##############################################################################################
-###########################################计算核平滑值
+###########################################To calculate the kernel smoothed value
 ##############################################################################################
 K <- function(x) {(1 / sqrt(2 * pi)) * exp(-x^2 / 2)}
 
 ##############################################################################################
-###########################################计算TL方差
+###########################################To calcuate the variance
 ##############################################################################################
 #############################################################################
 # FUNCTION v2_fun is a function to calculate complete TL variance for a     #
@@ -68,25 +60,25 @@ v2_fun = function(pw, pw_beta, mu_hat, model.par, y, svy.wt){
   # Calculate var(Phi)
   Phi_1  = as.data.frame(cbind(pw*(y-mu_hat), (1-p.c)*design.x.c))
   Phi_2  = -as.data.frame(cbind(0, svy.wt* p.s*design.x.s))
-  v1 = var(Phi_1)*n_c; v2 = var(Phi_2)*n_s; v_Phi = v1+v2    ###这两处应该是除以样本量的平方才对
+  v1 = var(Phi_1)*n_c; v2 = var(Phi_2)*n_s; v_Phi = v1+v2 
   v_all = phi_inv%*%v_Phi%*%t(phi_inv)
   return(list(v_all=v_all))
 } # End FUNCTION v2_fun
 
 ##############################################################################################
-###########################################主函数
-##############################################################################################
-#######################################################################################
-# 参数说明                                                                            #
-# data_NP:非概率样本                                                                  #
-# data_P:参考样本（概率样本）                                                         #
-# CIV:非概率样本与参考样本共同的变量名                                                #
-# type_CIV:非概率样本与参考样本共同变量的类型,可选'guassian','binomial','multinomial' #
-# DV_NP:结局变量名                                                                    #
-# DV_type:结局变量的类型，可选'guassian','binomial'                                   #
-# sample_w:概率样本的抽样权重                                                         #
-# maxclassnum:潜分类数目最大值                                                        #
-#######################################################################################
+###########################################Main function
+##########################################################################################################
+##########################################################################################################
+# Parameter description                                                                                   #
+# data_NP: nonprobability sample                                                                          #
+# data_P: reference sample                                                                                #
+# CIV: list of names of common covarates                                                                  #
+# type_CIV: list of type of common covaroates,possible values inlcude 'guassian','binomial','multinomial' #
+# DV_NP: outcome                                                                                          #
+# DV_type:type of outcome,possible values inlcude'guassian','binomial'                                    #
+# sample_w:sample weight of refernce sample                                                               #
+# maxclassnum:upper limit of latent classes                                                               #
+###########################################################################################################
 NPinfer_ALC <-
   function(data_NP=data_A,data_P=data_B,
            CIV=c('X1','X2','X3','X4','X5'),type_CIV=c('binomial','gaussian','gaussian','gaussian','gaussian'),
@@ -97,26 +89,27 @@ NPinfer_ALC <-
     ##################################################################################数据预处理-----
     #################################################################################################
     
-    #计算校正因子
+    #calculate scaling factor a
     a <- 1-nrow(data_P)/sum(data_P[,sample_weight])
     
-    #计算参考样本校正后的抽样权重
+    #calculate scaling weights for reference sample
     SW_P <- data_P[,sample_weight]*a
     OSW_P <- data_P[,sample_weight]
     data_P <- cbind(data_P,SW=SW_P,OSW=OSW_P)
     
-    #定义非概率样本的两个权重变量
+    #define weighting variables for nonprobability sample and reference sample, respectively
     SW_NP <- rep(1,times=nrow(data_NP))
     OSW_NP <- rep(1,times=nrow(data_NP))
     data_NP <- cbind(data_NP,SW=SW_NP,OSW=OSW_NP)
 
-    #生成表示id的变量
+    #geneting the id variable
     id <- 1:length(nrow(data_NP)+nrow(data_P))
-    #合并两个样本以及id列,生成表示样本来源的字符型变量datatype和数值型变量group(1-NP;0-P)
+    
+    #combine the two samples
     data_com <- cbind(rbind.fill(cbind(data_NP,group=1),cbind(data_P,group=0)),id)
     
     #################################################################################################
-    ################################################################识别潜分类-------
+    ################################################################Stage 1:Identification of heterogeneous populations using finite mixture modelling-------
     #################################################################################################
     data_com1 <- data_com
     for (CIV_i in 1:length(CIV)) {
@@ -127,11 +120,10 @@ NPinfer_ALC <-
       if(type_CIV[CIV_i]=='gaussian'){ data_com1[,CIV[CIV_i]] <- data_com1[,CIV[CIV_i]] }
     }
     
-    #用于潜分类分析的表达式
+    #model expression for identifying latent classes
     expr_variable <- paste('list(',paste(paste(CIV,'~1',sep=''),collapse = ','),')',sep='')
     expr_type <- paste('list(',paste(paste(type_CIV,'()',sep=''),collapse = ','),')',sep='')
     
-    #识别潜分类：BIC向量是用于存储每个潜分类下的BIC值
     BIC <- NULL;results_FM <- NULL
     for (i_class in 1:maxclassnum) {
       lca <- depmixS4::mix(eval(str2lang(expr_variable)),
@@ -161,10 +153,10 @@ NPinfer_ALC <-
     LC <- results_FM[,bestnum]
     
     #################################################################################################
-    ################################################################根据所识别潜分类建立模型-------
+    ################################################################stage 2:Construction of propensity score model and outcome projection model accounting for population heterogeneity -------
     #################################################################################################
     
-    #把多分类转变为哑变量
+    #transform the multinomial variables to dummy variables
     data_com2 <- cbind(data_com,LC)
     CIV_2 <- NULL
     
@@ -193,70 +185,70 @@ NPinfer_ALC <-
       
     }
     
-    #当最佳潜分类是1时，就没必要扣除潜在的异质性了，直接用普通回归
+    #when the optimal number of latent classes is 1, use directly the GLM
     if(bestnum==1){
-      #生成新的非概率样本和参考样本
+      #separate the two sample
       data_NP2 <- data_com2[data_com2$group==1,]
       data_P2 <- data_com2[data_com2$group==0,]
       
-      #逆概率加权的模型表达式及模型构建
+      #fit the propensity score model
       formula_myipw <- paste('group~',paste(CIV_2,collapse = '+'),sep='')
       fit_toNP <- glm(eval(str2lang(formula_myipw)), data=data_com2, family='binomial', weights = SW)
       
-      #超总体的模型表达式及模型构建
+      #fit the outcome projection model
       formula_mysp <- paste(DV_NP,'~',paste(CIV_2,collapse = '+'),sep='')
       fit_Y <- glm(eval(str2lang(formula_mysp)), data=data_NP2,family=DV_type)
     }#bestnum==1
     
-    #如果最佳潜分类超过1，使用多水平模型考虑异质性，最后生成fit_toNP和fit_Y用于后续计算
+    #when the optimal number of latent classed is more than 1, use the mixed-effects models
     if(bestnum!=1){
-      #把潜分类模型的分类结果添加到数据集上，并分别生成新的非概率样本和参考样本
+      #separate the two sample
       data_NP2 <- data_com2[data_com2$group==1,]
       data_P2 <- data_com2[data_com2$group==0,]
       
-      #逆概率加权的模型表达式
+      #fit the propensity score model
       formula_myipw <- paste('group~(',paste(CIV_2,collapse = '+'),'|LC)',sep='')
       suppressWarnings(fit_toNP <- glmer(eval(str2lang(formula_myipw)), data=data_com2, family=binomial, weights = SW))
       
-      #超总体的模型表达式及模型构建
+      #fit the outcome projection model
       formula_mysp <- paste(DV_NP,'~(',paste(CIV_2,collapse = '+'),'|LC)',sep='')
       suppressWarnings(fit_Y <- glmer(eval(str2lang(formula_mysp)), data=data_NP2,family=DV_type))
     }#bestnum!=1
     
     #################################################################################################
-    ################################################################改进逆概率加权法下的点估计值------
+    ################################################################estimate the kernel smoothed weights------
     #################################################################################################
     
-    #先计算合并样本中每个个体的入样倾向性评分
+    #estimate the propensity score of the combined sample
     ps_BOTH <- predict(fit_toNP, newdata=data_com2, type="link")
-    #单独提取非概率样本的倾向性评分
+    #select the propensity score of nonprobability sample
     ps_NP <- ps_BOTH[data_com2$group==1]
-    #单独提取参考样本的倾向性评分
+    #select the propensity score of reference sample
     ps_P <- ps_BOTH[data_com2$group==0]
-    #参考样本的抽样权重(经过加权校正)
+    #scaled weights of reference sample
     sweight_P <- data_com2[data_com2$group==0,'SW']
-    #计算非概率样本核平滑后的权重
-    fit_kernal <- kw.wt(p_score.c = ps_NP,p_score.s = ps_P,svy.wt = sweight_P,krn = "dnorm")                #核函数：标准正态分布
+    #kernel smoothed weigths of nonprobability sample
+    fit_kernal <- kw.wt(p_score.c = ps_NP,p_score.s = ps_P,svy.wt = sweight_P,krn = "dnorm")
     kwweight_NP <- fit_kernal$pswt
     point_kwipw <- sum(data_NP2[,DV_NP]*kwweight_NP)/sum(kwweight_NP)
     h <- fit_kernal$h
     
-    #####################################################################################TL方差：借鉴作者的代码
-    #两个样本的入样概率预测值
+    #####################################################################################estimate the variance
+    #projected outcome of the two sample
     PP_P <- predict(fit_toNP, newdata=data_P2, type="response")
     PP_NP <- predict(fit_toNP, newdata=data_NP2, type="response")
-    #定义两个样本的自变量矩阵
+    #design matrix of the two sample
     design_matrix_NP <- data_com2[data_com2$group==1,CIV_2]
     design_matrix_P <- data_com2[data_com2$group==0,CIV_2]
-    #共同变量的数目；非概率样本的样本量
+    #number of common covariates; sample size of nonprobability sample
     n_CIV <- ncol(design_matrix_NP);n_NP <- nrow(design_matrix_NP)
-    #计算概率样本(行)与非概率样本(列)自变量的距离矩阵
+    #estimate distance matrix 
     sgn_dist_mtx <- outer(ps_P,ps_NP,FUN = '-')
-    #对距离矩阵进一步核转换
+    #kernel smoothing the distance matrix
     krn_num <- K(sgn_dist_mtx/h)
-    #核转换距离矩阵的
-    row.krn = rowSums(krn_num) # sum_i\in s_c [K[{p^(s)_j- p^(s)_j}/h]]
-    #计算w关于beta的偏导
+    #summing the kernel smoothed matrix
+    row.krn = rowSums(krn_num)
+    #calculate the first derivative
     pw_beta=matrix(0, n_NP, n_CIV)
     for(i in 1:n_CIV){
       design.x.dist=outer(design_matrix_P[,i], design_matrix_NP[,i], FUN="-")
@@ -265,75 +257,57 @@ NPinfer_ALC <-
       deriv1= (sweight_P/row.krn)%*%kij_beta
       deriv2= -(sweight_P*row.kij_beta/row.krn/row.krn)%*%krn_num
       pw_beta[,i] = deriv1+deriv2}
-    #定义参数，包括两个样本的倾向性评分和设计矩阵
+    #define the parameter list
     model.par <- list(p.c=PP_NP,p.s=PP_P,design.x.c=as.matrix(design_matrix_NP),design.x.s=as.matrix(design_matrix_P))
-    #计算均数和回归系数的方差
+    #estimate the variance
     V_kwipw <- v2_fun(pw=kwweight_NP, pw_beta=pw_beta, mu_hat=point_kwipw, model.par=model.par, y=data_NP2[,DV_NP], svy.wt=sweight_P)$v_all[1,1]
-    #计算置信区间
+    #estimate the confidence interval
     CI_kwipw <- data.frame('lower_bound'=point_kwipw-1.96*sqrt(V_kwipw),'upper_bound'=point_kwipw+1.96*sqrt(V_kwipw))
     
     #################################################################################################
-    ################################################################改进超总体模型下的结局点估计值------
+    ################################################################estimate the projected outcome in the reference sample------
     #################################################################################################
     
-    #计算参考样本的结局预测值
+    #estimate the projected outcome in reference sample
     if(DV_type=='gaussian'){PDV_P <- predict(fit_Y, newdata=data_P2)}
     if(DV_type=='binomial'){
-      #基于非概率样本通过Youden指数计算最优的分类阈值
-      # linear_PDV_NP <- predict(fit_Y, newdata=data_NP2,type='response')
-      # roc_NP <- roc(data_NP2[,DV_NP],linear_PDV_NP)
-      # cutoff_NP <- coords(roc_NP,'best',ret=c('threshold'),best.method=c("youden"))
-      
-      # linear_PDV_P <- predict(fit_Y, newdata=data_P2,type='response')
-      # PDV_P <- ifelse(linear_PDV_P>=cutoff_NP$threshold, 1, 0)
-      
       PDV_P <- predict(fit_Y, newdata=data_P2,type='response')
-      
-    }
-    #通过设定设计类型来计算
+      }
     sweight2_P <- data_P2[,'OSW']
     PDV_svydesign <- svydesign(ids=~1, weights=sweight2_P,  data=data.frame(sweight2_P,PDV_P))
     out_PDV <- svymean(~PDV_P,PDV_svydesign)
-    #点估计值
+    
+    #point estiamte
     point_newsp <- out_PDV[[1]]
-
-    #计算方差
+    #variance estimate
     V_newsp <- attr(out_PDV,"var")[1]
-
-    #计算置信区间
+    #confidence interval estimate
     CI_newsp <- data.frame('lower_bound'=point_newsp-1.96*sqrt(V_newsp),'upper_bound'=point_newsp+1.96*sqrt(V_newsp))
     
     #################################################################################################
-    ################################################################改进双稳健估计法下的结局点估计值-----
+    ################################################################Construction of a doubly robust estimator-----
     #################################################################################################
     
-    #计算非概率样本的结局预测值
+    #estimate projected outcome in the nonprobability sample
     if(DV_type=='gaussian'){PDV_NP <- predict(fit_Y, newdata=data_NP2)}
     if(DV_type=='binomial'){
-      # PDV_NP <- ifelse(linear_PDV_NP>=cutoff_NP$threshold, 1, 0)
-      
       PDV_NP <- predict(fit_Y, newdata=data_NP2,type='response')
       }
-    #双稳健合并的点估计值
+    #point estimate of doubly robust estimator
     point_kwdr <- (sum((data_NP2[,DV_NP]-PDV_NP)*kwweight_NP)/sum(kwweight_NP)) + point_newsp
-    #残差向量
+    #residual vector
     redidual_P <- data_NP2[,DV_NP]-PDV_NP
     point_redidual_P <- (sum((data_NP2[,DV_NP]-PDV_NP)*kwweight_NP)/sum(kwweight_NP))
-    #point_kwdr代替point_kwipw，redidual_P代替data_NP2[,DV_NP]；计算均数和回归系数的方差
+    #variance estimate
     V_dr_1 <- v2_fun(pw=kwweight_NP, pw_beta=pw_beta, mu_hat=point_redidual_P, model.par=model.par, y=redidual_P, svy.wt=sweight_P)$v_all[1,1]
-    #加和两部分的方差
+    #summing the variance from two two parts
     V_dr <- V_dr_1+V_newsp
-    #计算置信区间
+    #confidence interval
     CI_kwdr <- data.frame('lower_bound'=point_kwdr-1.96*sqrt(V_dr),'upper_bound'=point_kwdr+1.96*sqrt(V_dr))
     
     
-    ################################################################将所计算的点估计值和方差输出
-    output <- list('point_kwipw'=point_kwipw,
-                   'point_newsp'=point_newsp,
-                   'point_kwdr'=point_kwdr,
-                   'CI_kwipw'=CI_kwipw,
-                   'CI_newsp'=CI_newsp,
-                   'CI_kwdr'=CI_kwdr)
+    ################################################################output
+    output <- list('point_kwdr'=point_kwdr,'CI_kwdr'=CI_kwdr)
     return(output)
     
   }#function:NPinfer_ALC
