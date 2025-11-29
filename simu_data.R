@@ -29,7 +29,7 @@ library(pROC)
 #dist: type of distribution parameter, dist=1 corresponds to Distributions of Z_i vary systematically across subpopulations;dist=2 corresponds to Distributions of Z_i vary irregularly, with parameters fluctuating without a monotone trend
 
 
-simucode <- function(N,n_A,n_B,R2,n_LC,icc,n_Z,n_P,Ytype,dist){
+simu_data <- function(N,n_A,n_B,R2,n_LC,icc,n_Z,n_P,Ytype,dist){
   
   #set the distribution parameters for different subpopulations
   if(dist==1){
@@ -563,4 +563,5 @@ simucode <- function(N,n_A,n_B,R2,n_LC,icc,n_Z,n_P,Ytype,dist){
   out <- list('population_data'=pop_data,
               'nonprobability_data'=data_A0,
               'reference_data'=data_B0)
+
 }
