@@ -15,7 +15,7 @@ Estimate the mean and 95%CI of a continuous outcome with simulated data using th
 1.Generate the simulated data using `simucode()`
 ```
 library(NHDR)
-data <- simucode(N=20000,n_A=500,n_B=1000,R2=0.5,n_LC=3,icc=0.5,n_Z=2,n_P=1,Ytype='gaussian',dist=1)
+data <- simu_data(N=20000,n_A=500,n_B=1000,R2=0.5,n_LC=3,icc=0.5,n_Z=2,n_P=1,Ytype='gaussian',dist=1)
 data_SA <- data$nonprobability_data
 data_SB <- data$reference_data
 ```
