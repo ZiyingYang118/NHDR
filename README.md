@@ -39,18 +39,18 @@ source(simulation.R)
 2.Set the simulation parameters and run the simulation. For example, take the following as the illustrative parameter setup and the code shown below:
 ```
 simucode(
-  B = 3000,        # number of replications
-  N = 100000,      # finite population size
-  n_A = 500,        # size of the nonprobability sample
-  n_B = 2000,       # size of the reference sample
-  R2 = 0.5,          # correlation parameter between key variables
+  B = 3000,           # number of replications
+  N = 100000,         # finite population size
+  n_A = 500,          # size of the nonprobability sample
+  n_B = 2000,         # size of the reference sample
+  R2 = 0.5,           # correlation parameter between key variables
   n_LC = 2,           # number of latent classes
   icc = 0.5,          # intraclass correlation coefficient
-  n_Z = 1,            # number of covariates with sign differences (example value)
+  n_Z = 1,            # number of covariates with sign differences 
   n_P = 1,            # number of subpopulations with opposing covariate effects
-  Ytype = 'gaussian',  # outcome distribution
-  dist = 1,             # how Z_i distributions vary across subpopulations
-  maxclassnum = 4       # upper limit for latent classes
+  Ytype = 'gaussian', # outcome distribution
+  dist = 1,           # how Z_i distributions vary across subpopulations
+  maxclassnum = 4     # upper limit for latent classes
 )
 
 ```
