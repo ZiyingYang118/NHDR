@@ -40,7 +40,7 @@ source(simulation.R)
 ```
 simucode(
   B = 3000,        # number of replications
-  N = ,             # finite population size (not specified in this example)
+  N = 100000,      # finite population size
   n_A = 500,        # size of the nonprobability sample
   n_B = 2000,       # size of the reference sample
   R2 = 0.5,          # correlation parameter between key variables
